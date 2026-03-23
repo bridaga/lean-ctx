@@ -1,0 +1,22 @@
+{
+  "ignore": [
+    "node_modules",
+    ".git",
+    "dist",
+    "build",
+    ".svelte-kit",
+    "__pycache__",
+    ".next"
+  ],
+  "compress": {
+    "removeEmptyLines": true,
+    "removeRedundantComments": true,
+    "maxFileLines": 500
+  },
+  "patterns": {
+    "npm": true,
+    "git": true,
+    "docker": true,
+    "typescript": true
+  }
+}

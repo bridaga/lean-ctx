@@ -1,0 +1,33 @@
+{
+  "name": "lean-ctx",
+  "version": "0.1.0",
+  "description": "Smart Context MCP Server — reduces LLM token consumption by caching file reads, compressing CLI output, and providing compact project maps.",
+  "type": "module",
+  "bin": {
+    "lean-ctx": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "llm",
+    "token-optimization",
+    "cursor",
+    "context-compression"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
