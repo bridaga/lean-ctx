@@ -2,6 +2,7 @@ use std::io::{self, BufRead, Write};
 use std::process::{Command, Stdio};
 
 use crate::core::patterns;
+use crate::core::stats;
 use crate::core::tokens::count_tokens;
 
 pub fn exec(command: &str) -> i32 {
@@ -34,20 +35,23 @@ pub fn exec(command: &str) -> i32 {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
 
-    let compressed_stdout = compress_if_beneficial(command, &stdout);
-    let compressed_stderr = compress_if_beneficial(command, &stderr);
+    let full_output = if stderr.is_empty() {
+        stdout.to_string()
+    } else if stdout.is_empty() {
+        stderr.to_string()
+    } else {
+        format!("{stdout}\n{stderr}")
+    };
 
-    if !compressed_stdout.is_empty() {
-        let _ = io::stdout().write_all(compressed_stdout.as_bytes());
-        if !compressed_stdout.ends_with('\n') {
+    let input_tokens = count_tokens(&full_output);
+    let (compressed, output_tokens) = compress_and_measure(command, &stdout, &stderr);
+
+    stats::record(command, input_tokens, output_tokens);
+
+    if !compressed.is_empty() {
+        let _ = io::stdout().write_all(compressed.as_bytes());
+        if !compressed.ends_with('\n') {
             let _ = io::stdout().write_all(b"\n");
-        }
-    }
-
-    if !compressed_stderr.is_empty() {
-        let _ = io::stderr().write_all(compressed_stderr.as_bytes());
-        if !compressed_stderr.ends_with('\n') {
-            let _ = io::stderr().write_all(b"\n");
         }
     }
 
@@ -82,6 +86,10 @@ pub fn interactive() {
         if cmd == "exit" || cmd == "quit" {
             break;
         }
+        if cmd == "gain" {
+            println!("{}", stats::format_gain());
+            continue;
+        }
 
         let exit_code = exec(cmd);
 
@@ -89,6 +97,25 @@ pub fn interactive() {
             let _ = writeln!(stdout, "[exit: {exit_code}]");
         }
     }
+}
+
+fn compress_and_measure(command: &str, stdout: &str, stderr: &str) -> (String, usize) {
+    let compressed_stdout = compress_if_beneficial(command, stdout);
+    let compressed_stderr = compress_if_beneficial(command, stderr);
+
+    let mut result = String::new();
+    if !compressed_stdout.is_empty() {
+        result.push_str(&compressed_stdout);
+    }
+    if !compressed_stderr.is_empty() {
+        if !result.is_empty() {
+            result.push('\n');
+        }
+        result.push_str(&compressed_stderr);
+    }
+
+    let output_tokens = count_tokens(&result);
+    (result, output_tokens)
 }
 
 fn compress_if_beneficial(command: &str, output: &str) -> String {

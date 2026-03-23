@@ -2,6 +2,7 @@ use anyhow::Result;
 use rmcp::ServiceExt;
 use tracing_subscriber::EnvFilter;
 
+mod cli;
 mod core;
 mod server;
 mod shell;
@@ -12,6 +13,8 @@ async fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() > 1 {
+        let rest = args[2..].to_vec();
+
         match args[1].as_str() {
             "-c" => {
                 let command = args[2..].join(" ");
@@ -27,8 +30,40 @@ async fn main() -> Result<()> {
                 shell::interactive();
                 return Ok(());
             }
+            "gain" => {
+                println!("{}", core::stats::format_gain());
+                return Ok(());
+            }
+            "init" => {
+                cli::cmd_init(&rest);
+                return Ok(());
+            }
+            "read" => {
+                cli::cmd_read(&rest);
+                return Ok(());
+            }
+            "diff" => {
+                cli::cmd_diff(&rest);
+                return Ok(());
+            }
+            "grep" => {
+                cli::cmd_grep(&rest);
+                return Ok(());
+            }
+            "find" => {
+                cli::cmd_find(&rest);
+                return Ok(());
+            }
+            "ls" => {
+                cli::cmd_ls(&rest);
+                return Ok(());
+            }
+            "deps" => {
+                cli::cmd_deps(&rest);
+                return Ok(());
+            }
             "--version" | "-V" => {
-                println!("lean-ctx 1.0.0");
+                println!("lean-ctx 1.1.0");
                 return Ok(());
             }
             "--help" | "-h" => {
@@ -36,7 +71,7 @@ async fn main() -> Result<()> {
                 return Ok(());
             }
             _ => {
-                eprintln!("lean-ctx: unknown argument '{}'\n", args[1]);
+                eprintln!("lean-ctx: unknown command '{}'\n", args[1]);
                 print_help();
                 std::process::exit(1);
             }
@@ -48,7 +83,7 @@ async fn main() -> Result<()> {
         .with_writer(std::io::stderr)
         .init();
 
-    tracing::info!("lean-ctx v1.0.0 MCP server starting");
+    tracing::info!("lean-ctx v1.1.0 MCP server starting");
 
     let server = tools::create_server();
     let transport = rmcp::transport::io::stdio();
@@ -60,33 +95,43 @@ async fn main() -> Result<()> {
 
 fn print_help() {
     println!(
-        "lean-ctx 1.0.0 — Smart Context MCP Server + Shell Hook
+        "lean-ctx 1.1.0 — Hybrid Context Optimizer (Shell Hook + MCP Server)
 
 USAGE:
-    lean-ctx                  Start MCP server (stdio transport)
-    lean-ctx -c \"command\"     Execute command with compressed output (shell hook)
-    lean-ctx exec \"command\"   Same as -c
-    lean-ctx shell            Interactive shell with output compression
-    lean-ctx --version        Show version
+    lean-ctx                       Start MCP server (stdio)
+    lean-ctx -c \"command\"          Execute with compressed output
+    lean-ctx exec \"command\"        Same as -c
+    lean-ctx shell                 Interactive shell with compression
 
-MODES:
-    MCP Server (default)      Native integration with Cursor, Copilot, Claude Code
-    Shell Hook (-c)           Transparent output compression, works as SHELL replacement
-    Interactive Shell          REPL with automatic output compression
+COMMANDS:
+    gain                           Show persistent token savings stats
+    init [--global]                Install shell aliases (.zshrc/.bashrc)
+    read <file> [-m mode]          Read file with compression
+    diff <file1> <file2>           Compressed file diff
+    grep <pattern> [path]          Search with compressed output
+    find <pattern> [path]          Find files with compressed output
+    ls [path]                      Directory listing with compression
+    deps [path]                    Show project dependencies
+
+READ MODES:
+    full (default)                 Full content
+    map                            Dependency graph + API signatures
+    signatures                     Function/class signatures only
+    aggressive                     Syntax-stripped content
+    entropy                        Shannon entropy filtered
+
+OPTIONS:
+    --version, -V                  Show version
+    --help, -h                     Show this help
 
 EXAMPLES:
-    # As MCP server (in mcp.json):
-    {{\"command\": \"lean-ctx\"}}
-
-    # As shell hook (in Cursor settings):
-    \"terminal.integrated.profiles.osx\": {{
-        \"lean-ctx\": {{\"path\": \"/path/to/lean-ctx\", \"args\": [\"--shell\"]}}
-    }}
-
-    # Direct use:
-    lean-ctx -c \"git status\"
-    lean-ctx -c \"cargo build 2>&1\"
-    lean-ctx exec \"npm install\"
+    lean-ctx -c \"git status\"       Compressed git output
+    lean-ctx gain                  Show savings statistics
+    lean-ctx init --global         Install shell aliases
+    lean-ctx read src/main.rs -m map
+    lean-ctx grep \"pub fn\" src/
+    lean-ctx find \"*.rs\" src/
+    lean-ctx deps .
 "
     );
 }

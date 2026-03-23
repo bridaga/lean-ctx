@@ -5,4 +5,5 @@ pub mod entropy;
 pub mod patterns;
 pub mod protocol;
 pub mod signatures;
+pub mod stats;
 pub mod tokens;

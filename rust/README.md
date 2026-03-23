@@ -8,7 +8,7 @@ Reduces LLM token consumption by 89-99%. Zero runtime dependencies.
 
 lean-ctx runs as **both**:
 
-- **Shell Hook** — Transparently compresses CLI output (git, npm, cargo, docker, tsc) before it reaches the LLM. Works without LLM cooperation.
+- **Shell Hook** — Transparently compresses CLI output (git, npm, cargo, docker, tsc, grep, find, ls, curl) before it reaches the LLM. Works without LLM cooperation.
 - **MCP Server** — Provides 8 advanced tools for cached file reads, dependency maps, entropy analysis, and more. Works with any MCP-compatible editor.
 
 ## Install
@@ -17,7 +17,14 @@ lean-ctx runs as **both**:
 cargo install lean-ctx
 ```
 
-Or download a prebuilt binary from [Releases](https://gitlab.pounce.ch/root/lean-ctx/-/releases).
+Or build from source:
+
+```bash
+git clone https://gitlab.pounce.ch/root/lean-ctx.git
+cd lean-ctx/rust
+cargo build --release
+cp target/release/lean-ctx ~/.local/bin/
+```
 
 ## Configure
 
@@ -67,19 +74,31 @@ claude mcp add lean-ctx lean-ctx
 
 ### Shell Hook (Transparent CLI Compression)
 
-Add to your shell profile (`.zshrc` / `.bashrc`):
+Automatic setup:
+
+```bash
+lean-ctx init --global
+```
+
+This adds aliases for `git`, `npm`, `cargo`, `docker`, `ls`, `find`, `grep`, `curl` to your `.zshrc` / `.bashrc` / `config.fish`.
+
+Or add manually to your shell profile:
 
 ```bash
 alias git='lean-ctx -c git'
 alias npm='lean-ctx -c npm'
 alias cargo='lean-ctx -c cargo'
 alias docker='lean-ctx -c docker'
+alias ls='lean-ctx -c ls'
+alias find='lean-ctx -c find'
+alias grep='lean-ctx -c grep'
+alias curl='lean-ctx -c curl'
 ```
 
 Or use the interactive shell:
 
 ```bash
-lean-ctx --shell
+lean-ctx shell
 ```
 
 **Cursor terminal profile** — add to VS Code settings:
@@ -88,8 +107,8 @@ lean-ctx --shell
 {
   "terminal.integrated.profiles.osx": {
     "lean-ctx": {
-      "path": "/path/to/lean-ctx",
-      "args": ["--shell"],
+      "path": "lean-ctx",
+      "args": ["shell"],
       "icon": "terminal"
     }
   }
@@ -99,6 +118,22 @@ lean-ctx --shell
 ### Cursor Rule
 
 Add `.cursor/rules/lean-ctx.mdc` to your project for maximum token savings. Example included in [`examples/lean-ctx.mdc`](examples/lean-ctx.mdc).
+
+## CLI Commands
+
+| Command | Description |
+|---|---|
+| `lean-ctx` | Start MCP server (stdio) |
+| `lean-ctx -c "command"` | Execute command with compressed output |
+| `lean-ctx shell` | Interactive shell with compression |
+| `lean-ctx gain` | Show persistent token savings statistics |
+| `lean-ctx init [--global]` | Install shell aliases |
+| `lean-ctx read <file> [-m mode]` | Read file with compression |
+| `lean-ctx diff <file1> <file2>` | Compressed file diff |
+| `lean-ctx grep <pattern> [path]` | Search with compressed output |
+| `lean-ctx find <pattern> [path]` | Find files with compressed output |
+| `lean-ctx ls [path]` | Directory listing with compression |
+| `lean-ctx deps [path]` | Show project dependencies |
 
 ## 8 MCP Tools
 
@@ -133,17 +168,43 @@ Add `.cursor/rules/lean-ctx.mdc` to your project for maximum token savings. Exam
 3. **Structured Headers**: Every response includes `F1=path [NL +] deps:[...] exports:[...]` for instant context.
 4. **Signature Extraction**: Function/class/type signatures for TS/JS, Rust, Python, Go.
 5. **Entropy Filtering**: Shannon entropy removes low-information lines; Jaccard similarity deduplicates patterns.
-6. **CLI Compression**: Pattern-based compression for git, npm, cargo, docker, tsc.
+6. **CLI Compression**: Pattern-based compression for git, npm, cargo, docker, tsc, grep, find, ls, curl, test runners.
+7. **Persistent Stats**: All shell hook compressions are tracked in `~/.lean-ctx/stats.json`. View with `lean-ctx gain`.
 
 ### Shell Hook Mode
 
 Transparently wraps shell commands and compresses output:
 
 ```
-$ lean-ctx -c git status
-# Branch: main [clean]
-# Modified: 2 files
-# [lean-ctx: 847→156 tok saved 82%]
+$ lean-ctx -c "ls -la src/"
+core/
+tools/
+cli.rs  9.0K
+main.rs  4.0K
+server.rs  11.9K
+shell.rs  5.2K
+4 files, 2 dirs
+[lean-ctx: 239→46 tok, -81%]
+```
+
+### Token Savings Dashboard
+
+```
+$ lean-ctx gain
+lean-ctx Token Savings
+══════════════════════════════════════════════════
+Total commands:  3
+Input tokens:    452
+Output tokens:   190
+Tokens saved:    262 (58.0%)
+Tracking since:  2026-03-23
+
+By Command:
+──────────────────────────────────────────────────
+Command               Count      Saved   Avg%
+ls                        1        177  74.1%
+git status                1         85  39.9%
+══════════════════════════════════════════════════
 ```
 
 ### CRP v2 (Compact Response Protocol)
@@ -158,7 +219,9 @@ lean-ctx includes optimized system prompts (via Cursor Rules) that reduce LLM th
 | Language | Rust | Rust |
 | File caching | ✗ | ✓ MD5 session cache |
 | File compression | ✗ | ✓ 6 modes incl. dependency maps |
-| CLI compression | ✓ | ✓ + cargo, docker patterns |
+| CLI compression | ✓ ~30 cmds | ✓ git, npm, cargo, docker, tsc, grep, find, ls, curl, test |
+| Persistent stats | ✓ `rtk gain` | ✓ `lean-ctx gain` |
+| Auto-setup | ✓ `rtk init` | ✓ `lean-ctx init` |
 | Dependency analysis | ✗ | ✓ import/export extraction |
 | Context checkpoint | ✗ | ✓ ctx_compress |
 | Token counting | Estimated | tiktoken-exact (o200k_base) |

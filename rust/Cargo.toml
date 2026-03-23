@@ -1,6 +1,6 @@
 [package]
 name = "lean-ctx"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 description = "Smart Context MCP Server — reduces LLM token consumption by 89-99%. Single Rust binary, zero runtime dependencies."
 license = "MIT"
@@ -24,6 +24,8 @@ regex = "1"
 walkdir = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dirs = "5"
+chrono = { version = "0.4", features = ["serde"] }
 
 [profile.release]
 opt-level = "z"
