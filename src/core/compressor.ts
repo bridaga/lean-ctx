@@ -20,12 +20,19 @@ export class Compressor {
     }
   }
 
-  compressCode(content: string): CompressResult {
+  compressCode(content: string, aggressive = false): CompressResult {
     const original = content;
     let result = content;
 
     result = this.collapseEmptyLines(result);
     result = this.removeRedundantComments(result);
+
+    if (aggressive) {
+      result = this.reduceIndentation(result);
+      result = this.stripObviousTypes(result);
+      result = this.collapseSimpleBlocks(result);
+      result = this.removeTrailingWhitespace(result);
+    }
 
     return this.buildResult(original, result);
   }
@@ -133,6 +140,35 @@ export class Compressor {
         return true;
       })
       .join('\n');
+  }
+
+  private reduceIndentation(text: string): string {
+    return text.replace(/^( {4}|\t)/gm, '  ').replace(/^( {2}) {2}/gm, '$1');
+  }
+
+  private stripObviousTypes(text: string): string {
+    const lines = text.split('\n');
+    return lines
+      .map((line) => {
+        let result = line;
+        result = result.replace(/:\s*string\s*=\s*(['"`])/g, '= $1');
+        result = result.replace(/:\s*number\s*=\s*(\d)/g, '= $1');
+        result = result.replace(/:\s*boolean\s*=\s*(true|false)/g, '= $1');
+        result = result.replace(/:\s*void\s*(?={|$)/g, ' ');
+        return result;
+      })
+      .join('\n');
+  }
+
+  private collapseSimpleBlocks(text: string): string {
+    return text.replace(
+      /\{\n\s*(return [^\n]{1,60};)\n\s*\}/g,
+      '{ $1 }'
+    );
+  }
+
+  private removeTrailingWhitespace(text: string): string {
+    return text.replace(/[ \t]+$/gm, '');
   }
 
   private buildResult(original: string, compressed: string): CompressResult {

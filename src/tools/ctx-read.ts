@@ -4,15 +4,26 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SessionCache } from '../core/session-cache.js';
 import { Compressor } from '../core/compressor.js';
+import { computeDiff, formatDiff } from '../core/differ.js';
+import { extractSignatures } from '../core/signature-extractor.js';
 
 const compressor = new Compressor();
 
 export function registerCtxRead(server: McpServer, cache: SessionCache): void {
   server.tool(
     'ctx_read',
-    'Smart file read with session caching. Returns cached summary if file was already read and unchanged. Saves tokens by avoiding redundant reads.',
+    `Smart file read with session caching and multiple modes.
+Modes:
+- "full" (default): Returns file content, cached on re-read if unchanged.
+- "signatures": Returns only function signatures, interfaces, types, and exports. Ideal for dependency files where only the API surface is needed. Saves 60-80% tokens.
+- "diff": If the file was previously read and has changed, returns only the diff. Saves 70-95% tokens on changed files.
+- "aggressive": Full content but with aggressive syntax stripping (reduced indentation, stripped obvious types). Saves 20-40% extra.`,
     {
       path: z.string().describe('Absolute or relative file path to read'),
+      mode: z
+        .enum(['full', 'signatures', 'diff', 'aggressive'])
+        .optional()
+        .describe('Read mode: full (default), signatures (API only), diff (changes only), aggressive (stripped syntax)'),
       query: z
         .string()
         .optional()
@@ -22,34 +33,18 @@ export function registerCtxRead(server: McpServer, cache: SessionCache): void {
         .optional()
         .describe('Force re-read even if cached (default: false)'),
     },
-    async ({ path: filePath, query, force }) => {
+    async ({ path: filePath, mode = 'full', query, force }) => {
       const absPath = resolve(filePath);
 
       if (!force) {
         const check = await cache.checkFile(absPath);
 
         if (check.cached && !check.changed && check.entry) {
-          const turnsAgo = cache.turnsAgo(check.entry);
-          const lines = check.entry.lineCount;
-          const summary = `File already in context (read ${turnsAgo} turn${turnsAgo !== 1 ? 's' : ''} ago, ${lines} lines, unchanged).`;
+          return handleCacheHit(absPath, check.entry, mode, query, cache);
+        }
 
-          if (query) {
-            const filtered = filterByQuery(check.entry.content, query);
-            if (filtered) {
-              return {
-                content: [
-                  {
-                    type: 'text' as const,
-                    text: `${summary}\nFiltered for "${query}":\n\n${filtered}`,
-                  },
-                ],
-              };
-            }
-          }
-
-          return {
-            content: [{ type: 'text' as const, text: summary }],
-          };
+        if (check.cached && check.changed && check.entry && mode === 'diff') {
+          return handleDiffMode(absPath, check.entry, cache);
         }
       }
 
@@ -57,38 +52,114 @@ export function registerCtxRead(server: McpServer, cache: SessionCache): void {
       try {
         content = await readFile(absPath, 'utf-8');
       } catch (err) {
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Error reading file: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        return errorResult(`Error reading file: ${err instanceof Error ? err.message : String(err)}`);
       }
 
-      const compressed = compressor.compressCode(content);
       cache.store(absPath, content);
+
+      if (mode === 'signatures') {
+        return handleSignaturesMode(content, absPath);
+      }
+
+      if (mode === 'diff') {
+        const lineCount = content.split('\n').length;
+        return textResult(`First read of file (${lineCount} lines) — no previous version to diff against.\n\n${compressor.compressCode(content).output}`);
+      }
+
+      const aggressive = mode === 'aggressive';
+      const compressed = compressor.compressCode(content, aggressive);
 
       let output = compressed.output;
 
       if (query) {
         const filtered = filterByQuery(output, query);
         if (filtered) {
-          output = `Filtered for "${query}" (${compressed.reductionPercent}% compressed):\n\n${filtered}`;
+          output = `Filtered for "${query}":\n\n${filtered}`;
         }
       }
 
-      const meta = compressed.reductionPercent > 0
-        ? `\n[lean-ctx: ${compressed.reductionPercent}% smaller, ${content.split('\n').length} lines]`
-        : '';
-
-      return {
-        content: [{ type: 'text' as const, text: output + meta }],
-      };
+      const meta = buildMeta(compressed.reductionPercent, content.split('\n').length, mode);
+      return textResult(output + meta);
     }
   );
+}
+
+function handleCacheHit(
+  absPath: string,
+  entry: import('../core/session-cache.js').CacheEntry,
+  mode: string,
+  query: string | undefined,
+  cache: SessionCache
+): { content: { type: 'text'; text: string }[] } {
+  const turnsAgo = cache.turnsAgo(entry);
+  const lines = entry.lineCount;
+
+  if (mode === 'signatures') {
+    return handleSignaturesMode(entry.content, absPath);
+  }
+
+  const summary = `File already in context (read ${turnsAgo} turn${turnsAgo !== 1 ? 's' : ''} ago, ${lines} lines, unchanged).`;
+
+  if (query) {
+    const filtered = filterByQuery(entry.content, query);
+    if (filtered) {
+      return textResult(`${summary}\nFiltered for "${query}":\n\n${filtered}`);
+    }
+  }
+
+  return textResult(summary);
+}
+
+async function handleDiffMode(
+  absPath: string,
+  oldEntry: { content: string },
+  cache: SessionCache
+): Promise<{ content: { type: 'text'; text: string }[] }> {
+  let newContent: string;
+  try {
+    newContent = await readFile(absPath, 'utf-8');
+  } catch (err) {
+    return errorResult(`Error reading file: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  cache.store(absPath, newContent);
+
+  const diff = computeDiff(oldEntry.content, newContent);
+
+  if (diff.addedLines === 0 && diff.removedLines === 0) {
+    return textResult('File unchanged (no diff).');
+  }
+
+  const formatted = formatDiff(diff);
+  const totalLines = newContent.split('\n').length;
+  const diffLines = formatted.split('\n').length;
+  const savings = Math.round(((totalLines - diffLines) / totalLines) * 100);
+
+  return textResult(`${formatted}\n[lean-ctx diff: ${savings}% smaller than full file, ${diff.addedLines}+ ${diff.removedLines}- lines]`);
+}
+
+function handleSignaturesMode(
+  content: string,
+  absPath: string
+): { content: { type: 'text'; text: string }[] } {
+  const result = extractSignatures(content, absPath);
+  const savings = Math.round(((result.originalLines - result.extractedLines) / result.originalLines) * 100);
+
+  return textResult(`${result.formatted}\n[lean-ctx signatures: ${savings}% smaller, ${result.extractedLines} of ${result.originalLines} lines]`);
+}
+
+function buildMeta(reductionPercent: number, lineCount: number, mode: string): string {
+  if (reductionPercent <= 0) return '';
+  const modeLabel = mode === 'aggressive' ? ', aggressive stripping' : '';
+  return `\n[lean-ctx: ${reductionPercent}% compressed, ${lineCount} lines${modeLabel}]`;
+}
+
+function textResult(text: string) {
+  return { content: [{ type: 'text' as const, text }] };
+}
+
+function errorResult(text: string) {
+  return { content: [{ type: 'text' as const, text }], isError: true };
 }
 
 function filterByQuery(content: string, query: string): string | null {
