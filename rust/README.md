@@ -13,18 +13,16 @@ lean-ctx runs as **both**:
 
 ## Install
 
-```bash
-cargo install lean-ctx
-```
-
-Or build from source:
+Build from source (requires [Rust toolchain](https://rustup.rs)):
 
 ```bash
 git clone https://gitlab.pounce.ch/root/lean-ctx.git
 cd lean-ctx/rust
 cargo build --release
-cp target/release/lean-ctx ~/.local/bin/
+cp target/release/lean-ctx ~/.local/bin/   # or /usr/local/bin
 ```
+
+Make sure the install directory is in your `PATH`.
 
 ## Configure
 

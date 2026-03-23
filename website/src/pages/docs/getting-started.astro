@@ -19,7 +19,7 @@ import DocsLayout from '../../layouts/DocsLayout.astro';
   <p>lean-ctx has two complementary operating modes in a single binary:</p>
   <ul>
     <li><strong>Shell Hook</strong> — Wraps CLI commands and compresses output automatically.
-        Works without LLM cooperation. Supports git, npm, cargo, docker, tsc.</li>
+        Works without LLM cooperation. Supports git, npm, cargo, docker, tsc, grep, find, ls, curl, and test runners.</li>
     <li><strong>MCP Server</strong> — 8 advanced tools for cached reads, dependency maps,
         entropy analysis, benchmarking, and session metrics. Works with any MCP editor.</li>
   </ul>
@@ -82,11 +82,16 @@ import DocsLayout from '../../layouts/DocsLayout.astro';
   </table>
 
   <h2>Quick Install</h2>
-  <pre><code>cargo install lean-ctx</code></pre>
+  <pre><code>git clone https://gitlab.pounce.ch/root/lean-ctx.git
+cd lean-ctx/rust
+cargo build --release
+cp target/release/lean-ctx ~/.local/bin/</code></pre>
+
+  <p>Then set up the shell hook and configure your editor:</p>
+  <pre><code>lean-ctx init --global</code></pre>
 
   <p>
-    After installing, configure your editor to use the lean-ctx MCP server.
-    See the <a href="/docs/installation">Installation guide</a> for editor-specific instructions.
+    See the <a href="/docs/installation">Installation guide</a> for editor-specific MCP configuration.
   </p>
 
   <h2>Verify It Works</h2>

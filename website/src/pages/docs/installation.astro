@@ -9,16 +9,12 @@ import DocsLayout from '../../layouts/DocsLayout.astro';
   </p>
 
   <h2>Install</h2>
-  <p>Via cargo:</p>
-  <pre><code>cargo install lean-ctx</code></pre>
-
-  <p>Or download a prebuilt binary from <a href="https://gitlab.pounce.ch/root/lean-ctx/-/releases">GitLab Releases</a>.</p>
-
-  <p>Or build from source:</p>
-  <pre><code>git clone https://gitlab.pounce.ch/root/lean-ctx
+  <p>Clone and build from source (requires <a href="https://rustup.rs">Rust toolchain</a>):</p>
+  <pre><code>git clone https://gitlab.pounce.ch/root/lean-ctx.git
 cd lean-ctx/rust
 cargo build --release
-# Binary at: target/release/lean-ctx</code></pre>
+cp target/release/lean-ctx ~/.local/bin/</code></pre>
+  <p>Make sure <code>~/.local/bin</code> is in your <code>PATH</code>. Alternatively, copy to <code>/usr/local/bin</code>.</p>
 
   <h2>MCP Server Setup</h2>
 
@@ -87,7 +83,7 @@ alias curl='lean-ctx -c curl'</code></pre>
   "terminal.integrated.profiles.osx": {
     "lean-ctx": {
       "path": "/path/to/lean-ctx",
-      "args": ["--shell"],
+      "args": ["shell"],
       "icon": "terminal"
     }
   }
@@ -95,7 +91,7 @@ alias curl='lean-ctx -c curl'</code></pre>
 
   <h3>Interactive Shell</h3>
   <p>Run lean-ctx as a shell wrapper:</p>
-  <pre><code>lean-ctx --shell</code></pre>
+  <pre><code>lean-ctx shell</code></pre>
 
   <h2>Cursor Rule (Optional)</h2>
   <p>

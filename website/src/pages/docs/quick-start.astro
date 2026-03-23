@@ -8,10 +8,16 @@ import DocsLayout from '../../layouts/DocsLayout.astro';
   </p>
 
   <h2>Step 1: Install</h2>
-  <pre><code>cargo install lean-ctx</code></pre>
-  <p>Or download a prebuilt binary from <a href="https://gitlab.pounce.ch/root/lean-ctx/-/releases">Releases</a>.</p>
+  <pre><code>git clone https://gitlab.pounce.ch/root/lean-ctx.git
+cd lean-ctx/rust
+cargo build --release
+cp target/release/lean-ctx ~/.local/bin/</code></pre>
 
-  <h2>Step 2: Configure Your Editor</h2>
+  <h2>Step 2: Set Up Shell Hook</h2>
+  <pre><code>lean-ctx init --global</code></pre>
+  <p>Installs aliases for git, npm, cargo, docker, grep, find, ls, curl.</p>
+
+  <h2>Step 3: Configure Your Editor</h2>
   <p>For Cursor, add to <code>~/.cursor/mcp.json</code>:</p>
   <pre><code>{`{
   "mcpServers": {
@@ -20,12 +26,6 @@ import DocsLayout from '../../layouts/DocsLayout.astro';
     }
   }
 }`}</code></pre>
-
-  <h2>Step 3: (Optional) Shell Hook</h2>
-  <p>Add transparent CLI compression to your <code>.zshrc</code>:</p>
-  <pre><code>alias git='lean-ctx -c git'
-alias npm='lean-ctx -c npm'
-alias cargo='lean-ctx -c cargo'</code></pre>
 
   <h2>Step 4: Restart and Verify</h2>
   <p>Restart your editor. The lean-ctx tools will appear in the MCP tool list.</p>
@@ -36,11 +36,11 @@ alias cargo='lean-ctx -c cargo'</code></pre>
   <p>You should see a table comparing raw tokens vs. each compression strategy.</p>
 
   <h2>Step 5: Monitor Savings</h2>
-  <pre><code>ctx_metrics</code></pre>
+  <pre><code>lean-ctx gain</code></pre>
 
   <p>
-    Shows session-wide token savings with USD cost estimates, per-tool breakdown,
-    and cache hit rates.
+    Shows cumulative token savings across all sessions. For per-session stats,
+    use <code>ctx_metrics</code> inside your editor.
   </p>
 
   <p>
