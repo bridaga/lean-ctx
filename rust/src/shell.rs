@@ -12,6 +12,7 @@ pub fn exec(command: &str) -> i32 {
     let child = Command::new(&real_shell)
         .arg("-c")
         .arg(command)
+        .env("LEAN_CTX_ACTIVE", "1")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn();
@@ -69,7 +70,7 @@ pub fn exec(command: &str) -> i32 {
 pub fn interactive() {
     let real_shell = detect_shell();
 
-    eprintln!("lean-ctx shell v1.5.0 (wrapping {real_shell})");
+    eprintln!("lean-ctx shell v1.5.1 (wrapping {real_shell})");
     eprintln!("All command output is automatically compressed.");
     eprintln!("Type 'exit' to quit.\n");
 

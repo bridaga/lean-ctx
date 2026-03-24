@@ -349,29 +349,31 @@ pub fn cmd_init(args: &[String]) {
             .unwrap_or_default();
 
         let aliases = "\n# lean-ctx shell hook — transparent CLI compression (50+ patterns)\n\
-            alias git 'lean-ctx -c git'\n\
-            alias npm 'lean-ctx -c npm'\n\
-            alias pnpm 'lean-ctx -c pnpm'\n\
-            alias yarn 'lean-ctx -c yarn'\n\
-            alias cargo 'lean-ctx -c cargo'\n\
-            alias docker 'lean-ctx -c docker'\n\
-            alias docker-compose 'lean-ctx -c docker-compose'\n\
-            alias kubectl 'lean-ctx -c kubectl'\n\
-            alias k 'lean-ctx -c kubectl'\n\
-            alias gh 'lean-ctx -c gh'\n\
-            alias pip 'lean-ctx -c pip'\n\
-            alias pip3 'lean-ctx -c pip3'\n\
-            alias ruff 'lean-ctx -c ruff'\n\
-            alias go 'lean-ctx -c go'\n\
-            alias golangci-lint 'lean-ctx -c golangci-lint'\n\
-            alias eslint 'lean-ctx -c eslint'\n\
-            alias prettier 'lean-ctx -c prettier'\n\
-            alias tsc 'lean-ctx -c tsc'\n\
-            alias ls 'lean-ctx -c ls'\n\
-            alias find 'lean-ctx -c find'\n\
-            alias grep 'lean-ctx -c grep'\n\
-            alias curl 'lean-ctx -c curl'\n\
-            alias wget 'lean-ctx -c wget'\n";
+            if not set -q LEAN_CTX_ACTIVE\n\
+            \talias git 'lean-ctx -c git'\n\
+            \talias npm 'lean-ctx -c npm'\n\
+            \talias pnpm 'lean-ctx -c pnpm'\n\
+            \talias yarn 'lean-ctx -c yarn'\n\
+            \talias cargo 'lean-ctx -c cargo'\n\
+            \talias docker 'lean-ctx -c docker'\n\
+            \talias docker-compose 'lean-ctx -c docker-compose'\n\
+            \talias kubectl 'lean-ctx -c kubectl'\n\
+            \talias k 'lean-ctx -c kubectl'\n\
+            \talias gh 'lean-ctx -c gh'\n\
+            \talias pip 'lean-ctx -c pip'\n\
+            \talias pip3 'lean-ctx -c pip3'\n\
+            \talias ruff 'lean-ctx -c ruff'\n\
+            \talias go 'lean-ctx -c go'\n\
+            \talias golangci-lint 'lean-ctx -c golangci-lint'\n\
+            \talias eslint 'lean-ctx -c eslint'\n\
+            \talias prettier 'lean-ctx -c prettier'\n\
+            \talias tsc 'lean-ctx -c tsc'\n\
+            \talias ls 'lean-ctx -c ls'\n\
+            \talias find 'lean-ctx -c find'\n\
+            \talias grep 'lean-ctx -c grep'\n\
+            \talias curl 'lean-ctx -c curl'\n\
+            \talias wget 'lean-ctx -c wget'\n\
+            end\n";
 
         if let Ok(existing) = std::fs::read_to_string(&config) {
             if existing.contains("lean-ctx") {
@@ -397,6 +399,7 @@ pub fn cmd_init(args: &[String]) {
 
         let aliases = r#"
 # lean-ctx shell hook — transparent CLI compression (50+ patterns)
+if [ -z "$LEAN_CTX_ACTIVE" ]; then
 alias git='lean-ctx -c git'
 alias npm='lean-ctx -c npm'
 alias pnpm='lean-ctx -c pnpm'
@@ -420,6 +423,7 @@ alias find='lean-ctx -c find'
 alias grep='lean-ctx -c grep'
 alias curl='lean-ctx -c curl'
 alias wget='lean-ctx -c wget'
+fi
 "#;
 
         if let Ok(existing) = std::fs::read_to_string(&rc_file) {

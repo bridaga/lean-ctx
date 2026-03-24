@@ -1,6 +1,4 @@
 use anyhow::Result;
-use rmcp::ServiceExt;
-use tracing_subscriber::EnvFilter;
 
 mod cli;
 mod core;
@@ -9,86 +7,84 @@ mod server;
 mod shell;
 mod tools;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() > 1 {
         let rest = args[2..].to_vec();
 
         match args[1].as_str() {
-            "-c" => {
+            "-c" | "exec" => {
                 let command = shell_join(&args[2..]);
-                let code = shell::exec(&command);
-                std::process::exit(code);
-            }
-            "exec" => {
-                let command = shell_join(&args[2..]);
+                if std::env::var("LEAN_CTX_ACTIVE").is_ok() {
+                    passthrough(&command);
+                }
                 let code = shell::exec(&command);
                 std::process::exit(code);
             }
             "shell" | "--shell" => {
                 shell::interactive();
-                return Ok(());
+                return;
             }
             "gain" => {
                 println!("{}", core::stats::format_gain());
-                return Ok(());
+                return;
             }
             "dashboard" => {
-                let port = rest.first()
+                let port = rest
+                    .first()
                     .and_then(|p| p.strip_prefix("--port=").or_else(|| p.strip_prefix("-p=")))
                     .and_then(|p| p.parse().ok());
-                dashboard::start(port).await;
-                return Ok(());
+                run_async(dashboard::start(port));
+                return;
             }
             "init" => {
                 cli::cmd_init(&rest);
-                return Ok(());
+                return;
             }
             "read" => {
                 cli::cmd_read(&rest);
-                return Ok(());
+                return;
             }
             "diff" => {
                 cli::cmd_diff(&rest);
-                return Ok(());
+                return;
             }
             "grep" => {
                 cli::cmd_grep(&rest);
-                return Ok(());
+                return;
             }
             "find" => {
                 cli::cmd_find(&rest);
-                return Ok(());
+                return;
             }
             "ls" => {
                 cli::cmd_ls(&rest);
-                return Ok(());
+                return;
             }
             "deps" => {
                 cli::cmd_deps(&rest);
-                return Ok(());
+                return;
             }
             "discover" => {
                 cli::cmd_discover(&rest);
-                return Ok(());
+                return;
             }
             "session" => {
                 cli::cmd_session();
-                return Ok(());
+                return;
             }
             "config" => {
                 cli::cmd_config(&rest);
-                return Ok(());
+                return;
             }
             "--version" | "-V" => {
-                println!("lean-ctx 1.5.0");
-                return Ok(());
+                println!("lean-ctx 1.5.1");
+                return;
             }
             "--help" | "-h" => {
                 print_help();
-                return Ok(());
+                return;
             }
             "mcp" => {
                 // fall through to MCP server startup below
@@ -101,30 +97,64 @@ async fn main() -> Result<()> {
         }
     }
 
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .with_writer(std::io::stderr)
-        .init();
+    if let Err(e) = run_mcp_server() {
+        eprintln!("lean-ctx: {e}");
+        std::process::exit(1);
+    }
+}
 
-    tracing::info!("lean-ctx v1.5.0 MCP server starting");
+fn passthrough(command: &str) -> ! {
+    let status = std::process::Command::new("/bin/sh")
+        .arg("-c")
+        .arg(command)
+        .status()
+        .map(|s| s.code().unwrap_or(1))
+        .unwrap_or(127);
+    std::process::exit(status);
+}
 
-    let server = tools::create_server();
-    let transport = rmcp::transport::io::stdio();
-    let service = server.serve(transport).await?;
-    service.waiting().await?;
+fn run_async<F: std::future::Future>(future: F) -> F::Output {
+    tokio::runtime::Runtime::new()
+        .expect("failed to create async runtime")
+        .block_on(future)
+}
 
-    Ok(())
+fn run_mcp_server() -> Result<()> {
+    use rmcp::ServiceExt;
+    use tracing_subscriber::EnvFilter;
+
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(async {
+        tracing_subscriber::fmt()
+            .with_env_filter(EnvFilter::from_default_env())
+            .with_writer(std::io::stderr)
+            .init();
+
+        tracing::info!("lean-ctx v1.5.1 MCP server starting");
+
+        let server = tools::create_server();
+        let transport = rmcp::transport::io::stdio();
+        let service = server.serve(transport).await?;
+        service.waiting().await?;
+
+        Ok(())
+    })
 }
 
 fn shell_join(args: &[String]) -> String {
-    args.iter().map(|a| shell_quote(a)).collect::<Vec<_>>().join(" ")
+    args.iter()
+        .map(|a| shell_quote(a))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn shell_quote(s: &str) -> String {
     if s.is_empty() {
         return "''".to_string();
     }
-    if s.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_./=:@,+%^".contains(&b)) {
+    if s.bytes()
+        .all(|b| b.is_ascii_alphanumeric() || b"-_./=:@,+%^".contains(&b))
+    {
         return s.to_string();
     }
     format!("'{}'", s.replace('\'', "'\\''"))
@@ -132,7 +162,7 @@ fn shell_quote(s: &str) -> String {
 
 fn print_help() {
     println!(
-        "lean-ctx 1.5.0 — Hybrid Context Optimizer with TDD (Shell Hook + MCP Server)
+        "lean-ctx 1.5.1 — Hybrid Context Optimizer with TDD (Shell Hook + MCP Server)
 
 50+ compression patterns | 8 MCP tools | Token Dense Dialect
 
