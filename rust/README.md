@@ -4,8 +4,9 @@
 
 [![Crates.io](https://img.shields.io/crates/v/lean-ctx)](https://crates.io/crates/lean-ctx)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Discord](https://img.shields.io/discord/1234567890?color=5865F2&label=Discord&logo=discord&logoColor=white)](https://discord.gg/pTHkG9Hew9)
 
-[Website](https://leanctx.com) · [Install](#installation) · [Quick Start](#quick-start) · [CLI Reference](#cli-commands) · [MCP Tools](#8-mcp-tools) · [vs RTK](#lean-ctx-vs-rtk)
+[Website](https://leanctx.com) · [Install](#installation) · [Quick Start](#quick-start) · [CLI Reference](#cli-commands) · [MCP Tools](#8-mcp-tools) · [vs RTK](#lean-ctx-vs-rtk) · [Discord](https://discord.gg/pTHkG9Hew9)
 
 ---
 
@@ -128,6 +129,13 @@ The shell hook transparently wraps commands (e.g., `git status` → `lean-ctx -c
     +---------------------------------+            +------ (filtered) -----+--------------+
 ```
 
+Four strategies applied per command type:
+
+1. **Smart Filtering** — Removes noise (progress bars, ANSI codes, whitespace, boilerplate)
+2. **Grouping** — Aggregates similar items (files by directory, errors by type)
+3. **Truncation** — Keeps relevant context, cuts redundancy
+4. **Deduplication** — Collapses repeated log lines with counts
+
 ## CLI Commands
 
 ### Shell Hook
@@ -159,9 +167,11 @@ lean-ctx deps .                          # Project dependencies summary
 lean-ctx init --global         # Install 23 shell aliases (.zshrc/.bashrc/.config/fish)
 lean-ctx gain                  # Persistent token savings (CLI)
 lean-ctx dashboard             # Web dashboard at localhost:3333
+lean-ctx dashboard --port=8080 # Custom port
 lean-ctx discover              # Find uncompressed commands in shell history
 lean-ctx session               # Show adoption statistics
-lean-ctx config                # Show/edit configuration
+lean-ctx config                # Show configuration (~/.lean-ctx/config.toml)
+lean-ctx config init           # Create default config file
 lean-ctx --version             # Show version
 lean-ctx --help                # Full help
 ```
@@ -178,19 +188,32 @@ The shell hook applies pattern-based compression for 50+ commands across 12 cate
 
 | Category | Commands | Savings |
 |---|---|---|
-| **Git** (16) | status, log, diff, add, commit, push, pull, fetch, clone, branch, checkout, merge, stash, tag, reset, remote, blame | -70-95% |
-| **Docker** (10) | build, ps, images, logs, compose, exec, network, volume, inspect | -70-90% |
+| **Git** (16) | status, log, diff, add, commit, push, pull, fetch, clone, branch, checkout, switch, merge, stash, tag, reset, remote, blame, cherry-pick | -70-95% |
+| **Docker** (10) | build, ps, images, logs, compose ps/up/down, exec, network, volume, inspect | -70-90% |
 | **npm/pnpm/yarn** (6) | install, test, run, list, outdated, audit | -70-90% |
-| **GitHub CLI** (8) | pr list/view/create, issue list/view, run list/view | -60-80% |
-| **Kubernetes** (8) | get, logs, describe, apply, delete, exec, top, rollout | -60-85% |
-| **Python** (8) | pip install/list/outdated, ruff check/format | -60-80% |
-| **Linters** (3) | eslint, biome, prettier | -60-70% |
+| **Cargo** (3) | build, test, clippy | -80% |
+| **GitHub CLI** (8) | pr list/view/create/merge, issue list/view/create, run list/view | -60-80% |
+| **Kubernetes** (8) | get pods/services/deployments, logs, describe, apply, delete, exec, top, rollout | -60-85% |
+| **Python** (8) | pip install/list/outdated/uninstall/check, ruff check/format | -60-80% |
+| **Linters** (3) | eslint, biome, prettier, stylelint | -60-70% |
 | **Build Tools** (3) | tsc, next build, vite build | -60-80% |
-| **Test Runners** (5) | jest, pytest, go test, playwright, cypress | -90% |
+| **Test Runners** (5) | jest, pytest, go test, playwright, cypress, rspec | -90% |
 | **Utils** (5) | curl, grep/rg, find, ls, wget | -50-89% |
-| **Data** (3) | env, JSON schema, log deduplication | -50-80% |
+| **Data** (3) | env (filtered), JSON schema extraction, log deduplication | -50-80% |
 
 Unrecognized commands get generic compression: ANSI stripping, empty line removal, and long output truncation.
+
+### 23 Auto-Rewritten Aliases
+
+After `lean-ctx init --global`, these commands are transparently compressed:
+
+```
+git, npm, pnpm, yarn, cargo, docker, docker-compose, kubectl, k,
+gh, pip, pip3, ruff, go, golangci-lint, eslint, prettier, tsc,
+ls, find, grep, curl, wget
+```
+
+Commands already using `lean-ctx` pass through unchanged.
 
 ## Examples
 
@@ -371,6 +394,37 @@ cp examples/lean-ctx.mdc .cursor/rules/lean-ctx.mdc
 
 This instructs the LLM to prefer lean-ctx tools and use compact output patterns (CRP v2).
 
+## Configuration
+
+### Shell Hook Setup
+
+```bash
+lean-ctx init --global
+```
+
+This adds 23 aliases (git, npm, pnpm, yarn, cargo, docker, kubectl, gh, pip, ruff, go, golangci-lint, eslint, prettier, tsc, ls, find, grep, curl, wget, and more) to your `.zshrc` / `.bashrc` / `config.fish`.
+
+Or add manually to your shell profile:
+
+```bash
+alias git='lean-ctx -c git'
+alias npm='lean-ctx -c npm'
+alias pnpm='lean-ctx -c pnpm'
+alias cargo='lean-ctx -c cargo'
+alias docker='lean-ctx -c docker'
+alias kubectl='lean-ctx -c kubectl'
+alias gh='lean-ctx -c gh'
+alias pip='lean-ctx -c pip'
+alias curl='lean-ctx -c curl'
+# ... and 14 more (run lean-ctx init --global for all)
+```
+
+Or use the interactive shell:
+
+```bash
+lean-ctx shell
+```
+
 ## Persistent Stats & Web Dashboard
 
 lean-ctx tracks all compressions (both MCP tools and shell hook) in `~/.lean-ctx/stats.json`:
@@ -400,7 +454,7 @@ Opens `http://localhost:3333` with:
 |---|---|---|
 | **Architecture** | Shell hook only | **Hybrid: Shell hook + MCP server** |
 | **Language** | Rust | Rust |
-| **CLI compression** | ~30 commands | **50+ patterns** (git, npm, cargo, docker, gh, kubectl, pip, ruff, eslint, go, playwright, curl, wget...) |
+| **CLI compression** | ~30 commands | **50+ patterns** (git, npm, cargo, docker, gh, kubectl, pip, ruff, eslint, prettier, tsc, go, playwright, curl, wget, JSON, logs...) |
 | **File reading** | `rtk read` (signatures mode) | **6 modes: full (cached), map, signatures, diff, aggressive, entropy** |
 | **File caching** | ✗ | ✓ MD5 session cache (re-reads = ~13 tokens) |
 | **Dependency maps** | ✗ | ✓ import/export extraction (TS/JS/Rust/Python/Go) |
@@ -408,11 +462,15 @@ Opens `http://localhost:3333` with:
 | **Token counting** | Estimated | tiktoken-exact (o200k_base) |
 | **Entropy analysis** | ✗ | ✓ Shannon entropy + Jaccard similarity |
 | **Cost tracking** | ✗ | ✓ USD estimates per session |
+| **Token Dense Dialect** | ✗ | ✓ TDD mode: symbol shorthand (λ, §, ∂) + identifier mapping (8-25% extra) |
 | **Thinking reduction** | ✗ | ✓ CRP v2 (30-60% fewer thinking tokens via Cursor Rules) |
 | **Persistent stats** | ✓ `rtk gain` | ✓ `lean-ctx gain` + web dashboard |
 | **Auto-setup** | ✓ `rtk init` | ✓ `lean-ctx init` |
 | **Editors** | Claude Code, OpenCode, Gemini CLI | **All MCP editors (Cursor, Copilot, Claude Code, Windsurf) + shell** |
-| **Stars** | 12.4k | — |
+| **Config file** | TOML | ✓ TOML (`~/.lean-ctx/config.toml`) |
+| **History analysis** | ✗ | ✓ `lean-ctx discover` — find uncompressed commands |
+| **Homebrew** | ✓ | ✓ `brew tap yvgude/tap && brew install lean-ctx` |
+| **Adoption tracking** | ✗ | ✓ `lean-ctx session` — adoption % |
 
 **Key difference**: RTK compresses CLI output only. lean-ctx compresses CLI output *and* file reads, search results, and project context through the MCP protocol — reaching 89-99% savings where RTK reaches 60-90%.
 
@@ -420,7 +478,7 @@ Opens `http://localhost:3333` with:
 
 ```bash
 # Remove shell aliases
-# Delete the "lean-ctx shell hook" block from ~/.zshrc or ~/.bashrc
+lean-ctx init --global  # re-run to see what was added, then remove from shell profile
 
 # Remove binary
 cargo uninstall lean-ctx
