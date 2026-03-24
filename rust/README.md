@@ -62,7 +62,7 @@ lean-ctx gain        # Should show token savings stats
 
 ## Token Dense Dialect (TDD)
 
-lean-ctx v1.3.1 introduces **TDD mode** — enabled by default. TDD compresses LLM communication using mathematical symbols and short identifiers:
+lean-ctx v1.3.2 introduces **TDD mode** — enabled by default. TDD compresses LLM communication using mathematical symbols and short identifiers:
 
 | Symbol | Meaning |
 |---|---|
