@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  lean-ctx-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.coolify
+    container_name: lean-ctx-dashboard
+    restart: unless-stopped
+    ports:
+      - "3333:3333"
+    volumes:
+      # Map the SQLite metrics store to persistent volume so stats survive rebuilds
+      - lean-ctx-data:/root/.lean-ctx
+    environment:
+      - NODE_ENV=production
+
+volumes:
+  lean-ctx-data:
+    driver: local
