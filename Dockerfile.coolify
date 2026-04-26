@@ -1,0 +1,21 @@
+FROM node:18-alpine
+
+# Install core utilities and lean-ctx via npm for the smallest image footprint
+RUN apk add --no-cache curl bash git \
+    && npm install -g lean-ctx-bin
+
+# Set working directory for potential local DB storage
+WORKDIR /app
+
+# Ensure lean-ctx environment is bootstrapped 
+RUN lean-ctx bootstrap
+
+# Map volume for persistent analytics (Coolify persistent storage)
+# Desktop instances can sync their ~/.lean-ctx/metrics.db here via cron/rsync
+VOLUME /root/.lean-ctx
+
+# Expose the dashboard tracking port
+EXPOSE 3333
+
+# Start the realtime dashboard service
+CMD ["lean-ctx", "dashboard"]
